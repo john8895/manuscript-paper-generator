@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>稿紙產生器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft JhengHei", sans-serif;
+    background: #f5f5f0;
+    color: #333;
+    padding: 24px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { text-align: center; margin-bottom: 20px; font-size: 22px; letter-spacing: 2px; }
+
+  .controls {
+    display: flex; gap: 12px; align-items: center;
+    margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .controls label { font-size: 14px; color: #555; }
+  .controls input[type="text"] {
+    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 14px; flex: 1; max-width: 280px;
+  }
+  .controls select {
+    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 14px;
+  }
+
+  textarea {
+    width: 100%; height: 160px;
+    font-size: 16px; line-height: 1.7; padding: 14px;
+    border: 2px solid #d0d0c8; border-radius: 8px;
+    resize: vertical;
+    font-family: "Songti SC", "Noto Serif TC", serif;
+    background: #fefefe;
+  }
+  textarea:focus { border-color: #2e8b57; outline: none; }
+
+  .info { margin: 8px 0; color: #888; font-size: 13px; }
+
+  .buttons { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+  button {
+    padding: 10px 24px; border: none; border-radius: 6px;
+    font-size: 15px; cursor: pointer; transition: background 0.2s;
+    font-weight: 500;
+  }
+  .btn-export { background: #2e8b57; color: #fff; }
+  .btn-export:hover { background: #246e45; }
+  .btn-print { background: #555; color: #fff; }
+  .btn-print:hover { background: #333; }
+
+  .preview { margin-top: 20px; }
+  .page-wrapper {
+    margin-bottom: 24px;
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-block;
+  }
+  .page-label {
+    font-size: 12px; color: #aaa; padding: 6px 12px;
+    background: #fafafa; border-bottom: 1px solid #eee;
+  }
+  canvas { display: block; width: 100%; height: auto; }
+
+  @media print {
+    body { background: #fff; padding: 0; margin: 0; }
+    .no-print { display: none !important; }
+    .container { max-width: none; margin: 0; padding: 0; }
+    .preview { margin: 0; padding: 0; }
+    .page-wrapper {
+      box-shadow: none; border-radius: 0; margin: 0; padding: 0;
+      page-break-after: always;
+      page-break-inside: avoid;
+      display: block;
+    }
+    .page-wrapper:last-child { page-break-after: auto; }
+    .page-label { display: none; }
+    canvas { display: block; width: 100%; height: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1 class="no-print">稿紙產生器</h1>
+
+  <div class="no-print">
+    <div class="controls">
+      <label>標題：</label>
+      <input type="text" id="titleInput" placeholder="選填，顯示在格子上方">
+      <label>方向：</label>
+      <select id="orientation">
+        <option value="portrait">直式</option>
+        <option value="landscape">橫式</option>
+      </select>
+      <label>格線：</label>
+      <select id="gridColor">
+        <option value="#2e8b57">綠色</option>
+        <option value="#b5453a">紅色</option>
+        <option value="#999">灰色</option>
+        <option value="#5b7daa">藍色</option>
+      </select>
+      <label>字體：</label>
+      <select id="fontSelect">
+        <option value="songti">宋體</option>
+        <option value="kaiti">楷體</option>
+      </select>
+    </div>
+
+    <textarea id="textInput" placeholder="在此貼上文章內容…"></textarea>
+    <div class="info" id="info">共 0 字 / 0 頁</div>
+
+    <div class="buttons">
+      <button class="btn-export" onclick="exportAll()">匯出 PNG</button>
+      <button class="btn-print" onclick="printPages()">列印</button>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+
+  <footer class="no-print" style="text-align:center; margin-top:40px; padding:16px 0; color:#bbb; font-size:13px;">
+    <a href="https://github.com/john8895/manuscript-paper-generator" target="_blank" style="color:#999; text-decoration:none;">GitHub: john8895/manuscript-paper-generator</a>
+  </footer>
+</div>
+
+<script>
+// ── 版面參數 ──
+// A4 at 200 DPI: portrait 1654×2339, landscape 2339×1654
+const DPI = 200;
+const A4_SHORT = 1654;
+const A4_LONG  = 2339;
+const COLS = 20;
+const CELL = 67;
+const GRID_W = CELL * COLS; // 1340
+const CHAR_SIZE = 46;
+const MIN_ROWS = 3;
+
+function getLayout() {
+  const orient = document.getElementById('orientation').value;
+  const isPortrait = orient === 'portrait';
+  const canvasW = isPortrait ? A4_SHORT : A4_LONG;
+  const canvasH = isPortrait ? A4_LONG  : A4_SHORT;
+  const topMargin = 190;
+  const bottomMargin = 100;
+  const maxGridH = canvasH - topMargin - bottomMargin;
+  const maxRows = Math.floor(maxGridH / CELL); // portrait: ~30, landscape: ~20
+  const offsetX = Math.floor((canvasW - GRID_W) / 2);
+  return { canvasW, canvasH, maxRows, offsetX, topMargin, orient };
+}
+
+// ── DOM ──
+const textInput     = document.getElementById('textInput');
+const titleInput    = document.getElementById('titleInput');
+const gridColorSel  = document.getElementById('gridColor');
+const fontSel       = document.getElementById('fontSelect');
+const orientSel     = document.getElementById('orientation');
+const preview       = document.getElementById('preview');
+const infoEl        = document.getElementById('info');
+
+// ── 字體 ──
+function fontStack(key) {
+  if (key === 'kaiti') return '"Kaiti SC", "DFKai-SB", "AR PL UKai TW", "Noto Sans TC", serif';
+  return '"Songti SC", "SimSun", "Noto Serif TC", serif';
+}
+
+// ── 禁則字元（不可出現在行首）──
+const NO_START = new Set('。，、；：！？）」』】》〉．‧…─—～·｝)].,:;!?\'\"');
+
+// ── 分頁 ──
+function paginate(text, maxRows) {
+  const lines = text.split('\n');
+  const pages = [];
+  let page = [];
+  let row = 0, col = 0;
+  let maxRowUsed = 0; // track highest row used on this page
+
+  function newPage() {
+    page._rowCount = maxRowUsed + 1;
+    pages.push(page);
+    page = [];
+    row = 0; col = 0;
+    maxRowUsed = 0;
+  }
+
+  for (let li = 0; li < lines.length; li++) {
+    const chars = [...lines[li]];
+
+    for (let ci = 0; ci < chars.length; ci++) {
+      if (row >= maxRows) newPage();
+
+      // 禁則
+      const nextCh = ci + 1 < chars.length ? chars[ci + 1] : null;
+      if (col === COLS - 1 && nextCh && NO_START.has(nextCh)) {
+        col = 0;
+        row++;
+        if (row >= maxRows) newPage();
+      }
+
+      page.push({ char: chars[ci], row, col });
+      if (row > maxRowUsed) maxRowUsed = row;
+      col++;
+      if (col >= COLS) { col = 0; row++; }
+    }
+
+    if (col > 0 || chars.length === 0) {
+      row++;
+      col = 0;
+    }
+  }
+
+  if (page.length > 0 || pages.length === 0) {
+    page._rowCount = page.length > 0 ? maxRowUsed + 1 : 0;
+    pages.push(page);
+  }
+  return pages;
+}
+
+// ── 繪製 ──
+function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount) {
+  const { canvasW, canvasH, offsetX, topMargin } = layout;
+  const actualRows = Math.max(rowCount, MIN_ROWS);
+  const gridH = CELL * actualRows;
+
+  canvas.width  = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  const gridColor = gridColorSel.value;
+  const font = fontStack(fontSel.value);
+
+  // 背景
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // 標題
+  if (title) {
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 50px ' + font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, canvasW / 2, topMargin / 2 + 5);
+  }
+
+  // 頁碼
+  if (totalPages > 1) {
+    ctx.fillStyle = '#bbb';
+    ctx.font = '26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pageNum + ' / ' + totalPages, canvasW / 2, topMargin + gridH + 60);
+  }
+
+  // 外框
+  ctx.strokeStyle = gridColor;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(offsetX, topMargin, GRID_W, gridH);
+
+  // 內格線
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = gridColor;
+  ctx.globalAlpha = 0.45;
+
+  for (let r = 1; r < actualRows; r++) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX, topMargin + r * CELL);
+    ctx.lineTo(offsetX + GRID_W, topMargin + r * CELL);
+    ctx.stroke();
+  }
+  for (let c = 1; c < COLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX + c * CELL, topMargin);
+    ctx.lineTo(offsetX + c * CELL, topMargin + gridH);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // 填字
+  ctx.fillStyle = '#222';
+  ctx.font = CHAR_SIZE + 'px ' + font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  for (const { char, row, col } of chars) {
+    const x = offsetX + col * CELL + CELL / 2;
+    const y = topMargin + row * CELL + CELL / 2;
+    ctx.fillText(char, x, y);
+  }
+}
+
+// ── 主渲染 ──
+function render() {
+  const text  = textInput.value;
+  const title = titleInput.value.trim();
+  const charCount = [...text.replace(/\n/g, '')].length;
+  const layout = getLayout();
+  const pages = paginate(text, layout.maxRows);
+
+  infoEl.textContent = '共 ' + charCount + ' 字 / ' + pages.length + ' 頁'
+    + '（每頁最多 ' + layout.maxRows + ' 行 × 20 格）';
+  preview.innerHTML = '';
+
+  // 更新 print page size
+  updatePrintStyle(layout.orient);
+
+  pages.forEach((chars, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'page-wrapper';
+
+    if (pages.length > 1) {
+      const label = document.createElement('div');
+      label.className = 'page-label no-print';
+      label.textContent = '第 ' + (i + 1) + ' 頁';
+      wrapper.appendChild(label);
+    }
+
+    const canvas = document.createElement('canvas');
+    renderPage(canvas, chars, i + 1, pages.length, title, layout, chars._rowCount || 0);
+    wrapper.appendChild(canvas);
+    preview.appendChild(wrapper);
+  });
+}
+
+// ── 動態列印方向 ──
+let printStyleEl = null;
+function updatePrintStyle(orient) {
+  if (!printStyleEl) {
+    printStyleEl = document.createElement('style');
+    document.head.appendChild(printStyleEl);
+  }
+  const size = orient === 'portrait' ? 'A4 portrait' : 'A4 landscape';
+  printStyleEl.textContent = '@media print { @page { size: ' + size + '; margin: 0; } }';
+}
+
+// ── 列印 ──
+function printPages() {
+  render(); // ensure latest
+  window.print();
+}
+
+// ── 匯出 ──
+function exportAll() {
+  const canvases = preview.querySelectorAll('canvas');
+  if (!canvases.length) return;
+  const base = titleInput.value.trim() || '稿紙';
+
+  canvases.forEach((cv, i) => {
+    setTimeout(() => {
+      cv.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = canvases.length === 1
+          ? base + '.png'
+          : base + '_' + (i + 1) + '.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    }, i * 350);
+  });
+}
+
+// ── 事件 ──
+let debounce;
+function scheduleRender() { clearTimeout(debounce); debounce = setTimeout(render, 120); }
+
+textInput.addEventListener('input', scheduleRender);
+titleInput.addEventListener('input', scheduleRender);
+gridColorSel.addEventListener('change', render);
+fontSel.addEventListener('change', render);
+orientSel.addEventListener('change', render);
+
+render();
+</script>
+</body>
+</html>

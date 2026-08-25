@@ -4,93 +4,372 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>小學生稿紙產生器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --desk: #c49a6c;
+    --desk-dark: #a07848;
+    --paper: #fffef9;
+    --cream: #faf3e8;
+    --ink: #2c2317;
+    --ink-light: #6b5c4d;
+    --pencil-yellow: #f4c430;
+    --pencil-body: #e8b420;
+    --eraser-pink: #e07882;
+    --eraser-hover: #d4636e;
+    --ruler-blue: #5b8fb9;
+    --grid-green: #2e8b57;
+    --tape-green: rgba(172, 211, 175, 0.7);
+    --tape-yellow: rgba(248, 230, 160, 0.75);
+    --highlight: #fff8dc;
+    --shadow: rgba(60, 40, 20, 0.12);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
-    font-family: -apple-system, "Microsoft JhengHei", sans-serif;
-    background: #f5f5f0;
-    color: #333;
-    padding: 24px;
+    font-family: "LXGW WenKai TC", "Noto Sans TC", sans-serif;
+    min-height: 100vh;
+    /* wooden desk texture */
+    background:
+      repeating-linear-gradient(
+        87deg,
+        transparent,
+        transparent 3px,
+        rgba(160,120,72,0.03) 3px,
+        rgba(160,120,72,0.03) 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 18px,
+        rgba(180,140,90,0.04) 18px,
+        rgba(180,140,90,0.04) 20px
+      ),
+      linear-gradient(175deg, #d4a574 0%, #c49a6c 40%, #b8905e 70%, #c9a070 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    padding: 28px 20px 40px;
   }
-  .container { max-width: 960px; margin: 0 auto; }
-  h1 { text-align: center; margin-bottom: 20px; font-size: 22px; letter-spacing: 2px; }
 
-  .field-group {
-    margin-bottom: 10px;
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  /* ── 主容器：筆記本 ── */
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    position: relative;
   }
-  .field-group label { font-size: 14px; color: #555; white-space: nowrap; }
-  .field-group input[type="text"] {
-    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 14px;
-  }
-  .field-group input[type="date"] {
-    padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 14px;
-  }
-  .field-group select {
-    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 14px;
-  }
-  .field-title { flex: 1; min-width: 160px; max-width: 300px; }
-  .field-name  { width: 100px; }
-  .field-class { width: 90px; }
-  .field-seat  { width: 70px; }
 
+  /* ── 標題區 ── */
+  .header {
+    text-align: center;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  /* 鉛筆 SVG */
+  .pencil-icon {
+    display: inline-block;
+    transform: rotate(-15deg);
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.15));
+  }
+
+  /* ── 筆記本卡片 ── */
+  .notebook {
+    background: var(--paper);
+    border-radius: 4px 16px 16px 4px;
+    box-shadow:
+      0 4px 20px var(--shadow),
+      0 1px 3px rgba(60,40,20,0.08),
+      inset -2px 0 8px rgba(0,0,0,0.02);
+    padding: 28px 32px 24px 48px;
+    position: relative;
+    /* 筆記本左邊裝訂線 */
+    border-left: 4px solid #d4636e;
+  }
+  .notebook::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 20px;
+    bottom: 20px;
+    width: 2px;
+    background: repeating-linear-gradient(
+      to bottom,
+      #e8838a 0px, #e8838a 4px,
+      transparent 4px, transparent 12px
+    );
+  }
+  /* washi tape 裝飾 */
+  .notebook::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 40px;
+    width: 90px;
+    height: 28px;
+    background: var(--tape-green);
+    transform: rotate(-2deg);
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* 第二條 washi tape */
+  .tape-accent {
+    position: absolute;
+    top: -6px;
+    left: 60px;
+    width: 70px;
+    height: 26px;
+    background: var(--tape-yellow);
+    transform: rotate(1.5deg);
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    z-index: 1;
+  }
+
+  /* ── 表單欄位 ── */
+  .field-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .field-row label {
+    font-size: 14px;
+    color: var(--ink-light);
+    white-space: nowrap;
+    font-weight: 400;
+  }
+  .field-row input[type="text"],
+  .field-row input[type="date"] {
+    padding: 7px 10px;
+    border: none;
+    border-bottom: 2px dashed #d4cfc6;
+    border-radius: 0;
+    font-size: 14px;
+    font-family: inherit;
+    background: transparent;
+    color: var(--ink);
+    transition: border-color 0.2s;
+  }
+  .field-row input[type="text"]:focus,
+  .field-row input[type="date"]:focus {
+    outline: none;
+    border-bottom-color: var(--ruler-blue);
+    border-bottom-style: solid;
+  }
+  .field-row select {
+    padding: 6px 10px;
+    border: 1.5px solid #e0d8cc;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--highlight);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .field-row select:focus {
+    outline: none;
+    border-color: var(--ruler-blue);
+  }
+  .field-title { flex: 1; min-width: 140px; max-width: 280px; }
+  .field-name  { width: 90px; }
+  .field-class { width: 80px; }
+  .field-seat  { width: 60px; }
+
+  /* ── 文字輸入 ── */
   textarea {
-    width: 100%; height: 160px;
-    font-size: 16px; line-height: 1.7; padding: 14px;
-    border: 2px solid #d0d0c8; border-radius: 8px;
+    width: 100%;
+    height: 150px;
+    font-size: 16px;
+    line-height: 1.8;
+    padding: 14px 16px;
+    border: 2px solid #e8e0d4;
+    border-radius: 10px;
     resize: vertical;
-    font-family: "Songti SC", "Noto Serif TC", serif;
-    background: #fefefe;
+    font-family: "LXGW WenKai TC", "Songti SC", "Noto Serif TC", serif;
+    background: #fffdf5;
+    color: var(--ink);
+    transition: border-color 0.2s;
+    /* 稿紙線背景 */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      #e8e0d4 27px,
+      #e8e0d4 28px
+    );
+    background-position: 0 14px;
   }
-  textarea:focus { border-color: #2e8b57; outline: none; }
+  textarea:focus {
+    outline: none;
+    border-color: var(--grid-green);
+  }
+  textarea::placeholder {
+    color: #c4b8a8;
+  }
 
-  .info { margin: 8px 0; color: #888; font-size: 13px; }
+  /* ── 字數 ── */
+  .info {
+    margin: 6px 0;
+    color: #a89880;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .info::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    background: var(--pencil-yellow);
+    border-radius: 50%;
+    border: 2px solid var(--pencil-body);
+  }
 
-  .buttons { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+  /* ── 按鈕 ── */
+  .buttons {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0 4px;
+    flex-wrap: wrap;
+  }
   button {
-    padding: 10px 24px; border: none; border-radius: 6px;
-    font-size: 15px; cursor: pointer; transition: background 0.2s;
-    font-weight: 500;
+    padding: 11px 28px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    position: relative;
   }
-  .btn-export { background: #2e8b57; color: #fff; }
-  .btn-export:hover { background: #246e45; }
-  .btn-print { background: #555; color: #fff; }
-  .btn-print:hover { background: #333; }
+  /* 橡皮擦風格的匯出按鈕 */
+  .btn-export {
+    background: linear-gradient(145deg, #e88690, var(--eraser-pink));
+    color: #fff;
+    box-shadow:
+      0 3px 0 #c4545e,
+      0 4px 8px rgba(0,0,0,0.12);
+  }
+  .btn-export:hover {
+    background: linear-gradient(145deg, #d4737e, var(--eraser-hover));
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 0 #c4545e,
+      0 6px 12px rgba(0,0,0,0.15);
+  }
+  .btn-export:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #c4545e;
+  }
+  /* 尺的藍色列印按鈕 */
+  .btn-print {
+    background: linear-gradient(145deg, #6b9fc9, var(--ruler-blue));
+    color: #fff;
+    box-shadow:
+      0 3px 0 #3d6f8f,
+      0 4px 8px rgba(0,0,0,0.12);
+  }
+  .btn-print:hover {
+    background: linear-gradient(145deg, #5b8fb9, #4a7fa9);
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 0 #3d6f8f,
+      0 6px 12px rgba(0,0,0,0.15);
+  }
+  .btn-print:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #3d6f8f;
+  }
 
-  .preview { margin-top: 20px; }
+  /* ── 預覽區 ── */
+  .preview { margin-top: 24px; }
   .page-wrapper {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
     background: #fff;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    box-shadow:
+      0 2px 8px rgba(60,40,20,0.08),
+      0 8px 24px rgba(60,40,20,0.06),
+      3px 3px 0 rgba(60,40,20,0.03);
     border-radius: 4px;
     overflow: hidden;
     display: inline-block;
     max-width: 100%;
+    /* 微微歪斜，像放在桌上 */
+    transform: rotate(-0.3deg);
+    transition: transform 0.3s;
+  }
+  .page-wrapper:hover {
+    transform: rotate(0deg) scale(1.005);
   }
   .page-label {
-    font-size: 12px; color: #aaa; padding: 6px 12px;
-    background: #fafafa; border-bottom: 1px solid #eee;
+    font-size: 12px;
+    color: #b8a890;
+    padding: 6px 14px;
+    background: #faf6ef;
+    border-bottom: 1px solid #ede6da;
   }
   canvas { display: block; width: 100%; height: auto; }
 
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    margin-top: 36px;
+    padding: 14px 0;
+  }
+  .footer a {
+    color: rgba(255,255,255,0.6);
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+  }
+  .footer a:hover { color: rgba(255,255,255,0.85); }
+
+  /* ── 分隔裝飾 ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, #e0d6c8, transparent);
+    margin: 14px 0;
+  }
+
   /* ── 手機版 ── */
   @media (max-width: 600px) {
-    body { padding: 12px; }
-    h1 { font-size: 18px; margin-bottom: 14px; }
-    .field-group { gap: 6px; }
-    .field-group label { font-size: 13px; }
-    .field-group input[type="text"],
-    .field-group input[type="date"],
-    .field-group select { font-size: 13px; padding: 5px 8px; }
+    body { padding: 14px 10px 30px; }
+    .header h1 { font-size: 20px; letter-spacing: 2px; }
+    .notebook {
+      padding: 20px 16px 18px 36px;
+      border-radius: 4px 12px 12px 4px;
+    }
+    .notebook::after { width: 60px; right: 20px; }
+    .tape-accent { width: 50px; left: 40px; }
+    .field-row { gap: 6px; }
+    .field-row label { font-size: 13px; }
+    .field-row input[type="text"],
+    .field-row input[type="date"],
+    .field-row select { font-size: 13px; }
     .field-title { max-width: none; flex-basis: 100%; }
-    .field-name { flex: 1; min-width: 80px; }
-    .field-class { flex: 1; min-width: 70px; }
-    .field-seat { flex: 1; min-width: 50px; }
-    textarea { height: 120px; font-size: 15px; padding: 10px; }
-    button { padding: 10px 16px; font-size: 14px; flex: 1; }
+    .field-name, .field-class, .field-seat { flex: 1; min-width: 50px; }
+    textarea { height: 120px; font-size: 15px; padding: 10px 12px; }
+    button { padding: 10px 18px; font-size: 14px; flex: 1; }
+    .page-wrapper { transform: none; }
   }
 
   @media print {
@@ -103,6 +382,7 @@
       page-break-after: always;
       page-break-inside: avoid;
       display: block;
+      transform: none;
     }
     .page-wrapper:last-child { page-break-after: auto; }
     .page-label { display: none; }
@@ -112,13 +392,27 @@
 </head>
 <body>
 <div class="container">
-  <h1 class="no-print">小學生稿紙產生器</h1>
 
-  <div class="no-print">
-    <!-- 第一行：標題 + 格式設定 -->
-    <div class="field-group">
+  <div class="header no-print">
+    <h1>
+      <svg class="pencil-icon" width="32" height="32" viewBox="0 0 64 64" fill="none">
+        <rect x="10" y="6" width="16" height="48" rx="2" transform="rotate(-10 18 30)" fill="#f4c430" stroke="#d4a010" stroke-width="1.5"/>
+        <polygon points="12,52 18,64 24,52" transform="rotate(-10 18 58)" fill="#f5deb3" stroke="#d4a010" stroke-width="1"/>
+        <rect x="10" y="46" width="16" height="6" rx="1" transform="rotate(-10 18 49)" fill="#c0c0c0" stroke="#a0a0a0" stroke-width="1"/>
+        <circle cx="18" cy="60" r="1.5" transform="rotate(-10 18 60)" fill="#333"/>
+        <rect x="10" y="6" width="16" height="8" rx="2" transform="rotate(-10 18 10)" fill="#e07882" stroke="#c4545e" stroke-width="1"/>
+      </svg>
+      小學生稿紙產生器
+    </h1>
+  </div>
+
+  <div class="notebook no-print">
+    <div class="tape-accent"></div>
+
+    <!-- 第一行：標題 + 格子大小 -->
+    <div class="field-row">
       <label>標題：</label>
-      <input type="text" id="titleInput" class="field-title" placeholder="選填，例：我的寒假生活">
+      <input type="text" id="titleInput" class="field-title" placeholder="例：我的寒假生活">
       <label>格子：</label>
       <select id="gridSize">
         <option value="large">大格 (低年級)</option>
@@ -128,19 +422,19 @@
     </div>
 
     <!-- 第二行：學生資訊 -->
-    <div class="field-group">
+    <div class="field-row">
       <label>姓名：</label>
-      <input type="text" id="nameInput" class="field-name" placeholder="選填">
+      <input type="text" id="nameInput" class="field-name">
       <label>班級：</label>
-      <input type="text" id="classInput" class="field-class" placeholder="選填">
+      <input type="text" id="classInput" class="field-class">
       <label>座號：</label>
-      <input type="text" id="seatInput" class="field-seat" placeholder="選填">
+      <input type="text" id="seatInput" class="field-seat">
       <label>日期：</label>
       <input type="date" id="dateInput">
     </div>
 
-    <!-- 第三行：方向 + 格線 + 字體 -->
-    <div class="field-group">
+    <!-- 第三行：格式設定 -->
+    <div class="field-row">
       <label>方向：</label>
       <select id="orientation">
         <option value="portrait">直式</option>
@@ -151,7 +445,7 @@
         <option value="#2e8b57">綠色</option>
         <option value="#b5453a">紅色</option>
         <option value="#999">灰色</option>
-        <option value="#5b7daa">藍色</option>
+        <option value="#5b8fb9">藍色</option>
       </select>
       <label>字體：</label>
       <select id="fontSelect">
@@ -160,33 +454,38 @@
       </select>
     </div>
 
-    <textarea id="textInput" placeholder="在此貼上文章內容…"></textarea>
+    <div class="divider"></div>
+
+    <textarea id="textInput" placeholder="在這裡貼上作文內容…"></textarea>
     <div class="info" id="info">共 0 字 / 0 頁</div>
 
     <div class="buttons">
-      <button class="btn-export" onclick="exportAll()">匯出 PNG</button>
+      <button class="btn-export" onclick="exportAll()">匯出圖片</button>
       <button class="btn-print" onclick="printPages()">列印</button>
     </div>
   </div>
 
   <div class="preview" id="preview"></div>
 
-  <footer class="no-print" style="text-align:center; margin-top:40px; padding:16px 0; color:#bbb; font-size:13px;">
-    <a href="https://github.com/john8895/manuscript-paper-generator" target="_blank" style="color:#999; text-decoration:none; display:inline-flex; align-items:center; gap:6px;"><svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>john8895/manuscript-paper-generator</a>
+  <footer class="footer no-print">
+    <a href="https://github.com/john8895/manuscript-paper-generator" target="_blank">
+      <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      john8895/manuscript-paper-generator
+    </a>
   </footer>
 </div>
 
 <script>
 // ── 版面參數 ──
-const A4_SHORT = 1654; // 200 DPI
+const A4_SHORT = 1654;
 const A4_LONG  = 2339;
 const SIDE_MARGIN = 160;
 const MIN_ROWS = 3;
 
 const GRID_PRESETS = {
-  large:    { cols: 12, label: '大格' },
-  medium:   { cols: 15, label: '中格' },
-  standard: { cols: 20, label: '標準' },
+  large:    { cols: 12 },
+  medium:   { cols: 15 },
+  standard: { cols: 20 },
 };
 
 // ── DOM ──
@@ -203,16 +502,13 @@ const orientSel     = document.getElementById('orientation');
 const preview       = document.getElementById('preview');
 const infoEl        = document.getElementById('info');
 
-// ── 字體 ──
 function fontStack(key) {
   if (key === 'kaiti') return '"Kaiti SC", "DFKai-SB", "AR PL UKai TW", "Noto Sans TC", serif';
   return '"Songti SC", "SimSun", "Noto Serif TC", serif';
 }
 
-// ── 禁則字元 ──
 const NO_START = new Set('。，、；：！？）」』】》〉．‧…─—～·｝)].,:;!?\'\"');
 
-// ── 版面計算 ──
 function getLayout() {
   const orient = orientSel.value;
   const isPortrait = orient === 'portrait';
@@ -220,46 +516,30 @@ function getLayout() {
   const canvasH = isPortrait ? A4_LONG  : A4_SHORT;
   const preset = GRID_PRESETS[gridSizeSel.value] || GRID_PRESETS.standard;
   const cols = preset.cols;
-
   const availW = canvasW - SIDE_MARGIN * 2;
   const cell = Math.floor(availW / cols);
   const gridW = cell * cols;
   const offsetX = Math.floor((canvasW - gridW) / 2);
   const charSize = Math.round(cell * 0.68);
-
   const topMargin = 210;
   const bottomMargin = 100;
   const maxGridH = canvasH - topMargin - bottomMargin;
   const maxRows = Math.floor(maxGridH / cell);
-
   return { canvasW, canvasH, cols, cell, gridW, offsetX, topMargin, maxRows, charSize, orient };
 }
 
-// ── 分頁 ──
 function paginate(text, maxRows, cols) {
   const lines = text.split('\n');
   const pages = [];
   let page = [];
-  let row = 0, col = 0;
-  let maxRowUsed = 0;
-
-  function newPage() {
-    page._rowCount = maxRowUsed + 1;
-    pages.push(page);
-    page = [];
-    row = 0; col = 0;
-    maxRowUsed = 0;
-  }
-
+  let row = 0, col = 0, maxRowUsed = 0;
+  function newPage() { page._rowCount = maxRowUsed + 1; pages.push(page); page = []; row = 0; col = 0; maxRowUsed = 0; }
   for (let li = 0; li < lines.length; li++) {
     const chars = [...lines[li]];
     for (let ci = 0; ci < chars.length; ci++) {
       if (row >= maxRows) newPage();
       const nextCh = ci + 1 < chars.length ? chars[ci + 1] : null;
-      if (col === cols - 1 && nextCh && NO_START.has(nextCh)) {
-        col = 0; row++;
-        if (row >= maxRows) newPage();
-      }
+      if (col === cols - 1 && nextCh && NO_START.has(nextCh)) { col = 0; row++; if (row >= maxRows) newPage(); }
       page.push({ char: chars[ci], row, col });
       if (row > maxRowUsed) maxRowUsed = row;
       col++;
@@ -267,48 +547,33 @@ function paginate(text, maxRows, cols) {
     }
     if (col > 0 || chars.length === 0) { row++; col = 0; }
   }
-
-  if (page.length > 0 || pages.length === 0) {
-    page._rowCount = page.length > 0 ? maxRowUsed + 1 : 0;
-    pages.push(page);
-  }
+  if (page.length > 0 || pages.length === 0) { page._rowCount = page.length > 0 ? maxRowUsed + 1 : 0; pages.push(page); }
   return pages;
 }
 
-// ── 學生資訊 ──
 function getStudentInfo() {
-  const name  = nameInput.value.trim();
-  const cls   = classInput.value.trim();
-  const seat  = seatInput.value.trim();
-  const date  = dateInput.value;
+  const name = nameInput.value.trim(), cls = classInput.value.trim();
+  const seat = seatInput.value.trim(), date = dateInput.value;
   const parts = [];
   if (name) parts.push('姓名：' + name);
   if (cls)  parts.push('班級：' + cls);
   if (seat) parts.push('座號：' + seat);
-  if (date) {
-    const d = new Date(date);
-    parts.push(d.getFullYear() + ' 年 ' + (d.getMonth()+1) + ' 月 ' + d.getDate() + ' 日');
-  }
+  if (date) { const d = new Date(date); parts.push(d.getFullYear() + ' 年 ' + (d.getMonth()+1) + ' 月 ' + d.getDate() + ' 日'); }
   return parts;
 }
 
-// ── 繪製 ──
 function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount) {
   const { canvasW, canvasH, cols, cell, gridW, offsetX, topMargin, charSize } = layout;
   const actualRows = Math.max(rowCount, MIN_ROWS);
   const gridH = cell * actualRows;
-
-  canvas.width  = canvasW;
-  canvas.height = canvasH;
+  canvas.width = canvasW; canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
   const gridColor = gridColorSel.value;
   const font = fontStack(fontSel.value);
 
-  // 背景
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvasW, canvasH);
 
-  // 標題
   if (title) {
     ctx.fillStyle = '#333';
     ctx.font = 'bold 52px ' + font;
@@ -317,20 +582,15 @@ function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount)
     ctx.fillText(title, canvasW / 2, 65);
   }
 
-  // 學生資訊
   const infoParts = getStudentInfo();
   if (infoParts.length > 0) {
     ctx.fillStyle = '#555';
     ctx.font = '30px ' + font;
     ctx.textBaseline = 'middle';
-    const infoY = title ? 135 : 80;
-    const totalText = infoParts.join('    ');
-    // 靠右對齊到格線右邊
     ctx.textAlign = 'right';
-    ctx.fillText(totalText, offsetX + gridW, infoY);
+    ctx.fillText(infoParts.join('    '), offsetX + gridW, title ? 135 : 80);
   }
 
-  // 頁碼
   if (totalPages > 1) {
     ctx.fillStyle = '#bbb';
     ctx.font = '26px sans-serif';
@@ -339,56 +599,39 @@ function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount)
     ctx.fillText(pageNum + ' / ' + totalPages, canvasW / 2, topMargin + gridH + 60);
   }
 
-  // 外框
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 3;
   ctx.strokeRect(offsetX, topMargin, gridW, gridH);
 
-  // 內格線
   ctx.lineWidth = 1;
   ctx.strokeStyle = gridColor;
   ctx.globalAlpha = 0.45;
   for (let r = 1; r < actualRows; r++) {
-    ctx.beginPath();
-    ctx.moveTo(offsetX, topMargin + r * cell);
-    ctx.lineTo(offsetX + gridW, topMargin + r * cell);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(offsetX, topMargin + r * cell); ctx.lineTo(offsetX + gridW, topMargin + r * cell); ctx.stroke();
   }
   for (let c = 1; c < cols; c++) {
-    ctx.beginPath();
-    ctx.moveTo(offsetX + c * cell, topMargin);
-    ctx.lineTo(offsetX + c * cell, topMargin + gridH);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(offsetX + c * cell, topMargin); ctx.lineTo(offsetX + c * cell, topMargin + gridH); ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
-  // 填字
   ctx.fillStyle = '#222';
   ctx.font = charSize + 'px ' + font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
   for (const { char, row, col } of chars) {
-    const x = offsetX + col * cell + cell / 2;
-    const y = topMargin + row * cell + cell / 2;
-    ctx.fillText(char, x, y);
+    ctx.fillText(char, offsetX + col * cell + cell / 2, topMargin + row * cell + cell / 2);
   }
 }
 
-// ── 主渲染 ──
 function render() {
-  const text  = textInput.value;
-  const title = titleInput.value.trim();
+  const text = textInput.value, title = titleInput.value.trim();
   const charCount = [...text.replace(/\n/g, '')].length;
   const layout = getLayout();
   const pages = paginate(text, layout.maxRows, layout.cols);
-
-  infoEl.textContent = '共 ' + charCount + ' 字 / ' + pages.length + ' 頁'
-    + '（每行 ' + layout.cols + ' 格，每頁最多 ' + layout.maxRows + ' 行）';
+  infoEl.textContent = '共 ' + charCount + ' 字 / ' + pages.length + ' 頁（每行 ' + layout.cols + ' 格，每頁最多 ' + layout.maxRows + ' 行）';
   preview.innerHTML = '';
   updatePrintStyle(layout.orient);
   saveState();
-
   pages.forEach((chars, i) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'page-wrapper';
@@ -405,21 +648,14 @@ function render() {
   });
 }
 
-// ── 動態列印方向 ──
 let printStyleEl = null;
 function updatePrintStyle(orient) {
-  if (!printStyleEl) {
-    printStyleEl = document.createElement('style');
-    document.head.appendChild(printStyleEl);
-  }
-  const size = orient === 'portrait' ? 'A4 portrait' : 'A4 landscape';
-  printStyleEl.textContent = '@media print { @page { size: ' + size + '; margin: 0; } }';
+  if (!printStyleEl) { printStyleEl = document.createElement('style'); document.head.appendChild(printStyleEl); }
+  printStyleEl.textContent = '@media print { @page { size: A4 ' + orient + '; margin: 0; } }';
 }
 
-// ── 列印 ──
 function printPages() { render(); window.print(); }
 
-// ── 匯出 ──
 function exportAll() {
   const canvases = preview.querySelectorAll('canvas');
   if (!canvases.length) return;
@@ -427,44 +663,29 @@ function exportAll() {
   canvases.forEach((cv, i) => {
     setTimeout(() => {
       cv.toBlob(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = canvases.length === 1
-          ? base + '.png'
-          : base + '_' + (i + 1) + '.png';
-        a.click();
-        URL.revokeObjectURL(a.href);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = canvases.length === 1 ? base + '.png' : base + '_' + (i + 1) + '.png';
+        a.click(); URL.revokeObjectURL(a.href);
       }, 'image/png');
     }, i * 350);
   });
 }
 
-// ── localStorage ──
 const STORAGE_KEY = 'manuscript-paper-state';
-
 function saveState() {
   try {
-    const state = {
-      text: textInput.value,
-      title: titleInput.value,
-      name: nameInput.value,
-      class: classInput.value,
-      seat: seatInput.value,
-      date: dateInput.value,
-      gridSize: gridSizeSel.value,
-      gridColor: gridColorSel.value,
-      font: fontSel.value,
-      orientation: orientSel.value,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) { /* ignore */ }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      text: textInput.value, title: titleInput.value, name: nameInput.value,
+      class: classInput.value, seat: seatInput.value, date: dateInput.value,
+      gridSize: gridSizeSel.value, gridColor: gridColorSel.value,
+      font: fontSel.value, orientation: orientSel.value,
+    }));
+  } catch (e) {}
 }
-
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw);
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!s) return;
     if (s.text != null)        textInput.value    = s.text;
     if (s.title != null)       titleInput.value   = s.title;
     if (s.name != null)        nameInput.value    = s.name;
@@ -475,18 +696,14 @@ function loadState() {
     if (s.gridColor != null)   gridColorSel.value = s.gridColor;
     if (s.font != null)        fontSel.value      = s.font;
     if (s.orientation != null) orientSel.value    = s.orientation;
-  } catch (e) { /* ignore */ }
+  } catch (e) {}
 }
 
-// ── 事件 ──
 let debounce;
 function scheduleRender() { clearTimeout(debounce); debounce = setTimeout(render, 120); }
-
-const allInputs = [textInput, titleInput, nameInput, classInput, seatInput, dateInput];
-allInputs.forEach(el => el.addEventListener('input', scheduleRender));
+[textInput, titleInput, nameInput, classInput, seatInput, dateInput].forEach(el => el.addEventListener('input', scheduleRender));
 [gridSizeSel, gridColorSel, fontSel, orientSel].forEach(el => el.addEventListener('change', render));
 
-// ── 初始化 ──
 loadState();
 render();
 </script>

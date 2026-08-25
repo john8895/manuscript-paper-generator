@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>稿紙產生器</title>
+<title>小學生稿紙產生器</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -15,19 +15,27 @@
   .container { max-width: 960px; margin: 0 auto; }
   h1 { text-align: center; margin-bottom: 20px; font-size: 22px; letter-spacing: 2px; }
 
-  .controls {
-    display: flex; gap: 12px; align-items: center;
-    margin-bottom: 10px; flex-wrap: wrap;
+  .field-group {
+    margin-bottom: 10px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   }
-  .controls label { font-size: 14px; color: #555; }
-  .controls input[type="text"] {
-    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
-    font-size: 14px; flex: 1; max-width: 280px;
-  }
-  .controls select {
+  .field-group label { font-size: 14px; color: #555; white-space: nowrap; }
+  .field-group input[type="text"] {
     padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
     font-size: 14px;
   }
+  .field-group input[type="date"] {
+    padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 14px;
+  }
+  .field-group select {
+    padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 14px;
+  }
+  .field-title { flex: 1; min-width: 160px; max-width: 300px; }
+  .field-name  { width: 100px; }
+  .field-class { width: 90px; }
+  .field-seat  { width: 70px; }
 
   textarea {
     width: 100%; height: 160px;
@@ -60,12 +68,30 @@
     border-radius: 4px;
     overflow: hidden;
     display: inline-block;
+    max-width: 100%;
   }
   .page-label {
     font-size: 12px; color: #aaa; padding: 6px 12px;
     background: #fafafa; border-bottom: 1px solid #eee;
   }
   canvas { display: block; width: 100%; height: auto; }
+
+  /* ── 手機版 ── */
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    h1 { font-size: 18px; margin-bottom: 14px; }
+    .field-group { gap: 6px; }
+    .field-group label { font-size: 13px; }
+    .field-group input[type="text"],
+    .field-group input[type="date"],
+    .field-group select { font-size: 13px; padding: 5px 8px; }
+    .field-title { max-width: none; flex-basis: 100%; }
+    .field-name { flex: 1; min-width: 80px; }
+    .field-class { flex: 1; min-width: 70px; }
+    .field-seat { flex: 1; min-width: 50px; }
+    textarea { height: 120px; font-size: 15px; padding: 10px; }
+    button { padding: 10px 16px; font-size: 14px; flex: 1; }
+  }
 
   @media print {
     body { background: #fff; padding: 0; margin: 0; }
@@ -86,12 +112,35 @@
 </head>
 <body>
 <div class="container">
-  <h1 class="no-print">稿紙產生器</h1>
+  <h1 class="no-print">小學生稿紙產生器</h1>
 
   <div class="no-print">
-    <div class="controls">
+    <!-- 第一行：標題 + 格式設定 -->
+    <div class="field-group">
       <label>標題：</label>
-      <input type="text" id="titleInput" placeholder="選填，顯示在格子上方">
+      <input type="text" id="titleInput" class="field-title" placeholder="選填，例：我的寒假生活">
+      <label>格子：</label>
+      <select id="gridSize">
+        <option value="large">大格 (低年級)</option>
+        <option value="medium">中格 (中年級)</option>
+        <option value="standard" selected>標準 (高年級)</option>
+      </select>
+    </div>
+
+    <!-- 第二行：學生資訊 -->
+    <div class="field-group">
+      <label>姓名：</label>
+      <input type="text" id="nameInput" class="field-name" placeholder="選填">
+      <label>班級：</label>
+      <input type="text" id="classInput" class="field-class" placeholder="選填">
+      <label>座號：</label>
+      <input type="text" id="seatInput" class="field-seat" placeholder="選填">
+      <label>日期：</label>
+      <input type="date" id="dateInput">
+    </div>
+
+    <!-- 第三行：方向 + 格線 + 字體 -->
+    <div class="field-group">
       <label>方向：</label>
       <select id="orientation">
         <option value="portrait">直式</option>
@@ -129,32 +178,25 @@
 
 <script>
 // ── 版面參數 ──
-// A4 at 200 DPI: portrait 1654×2339, landscape 2339×1654
-const DPI = 200;
-const A4_SHORT = 1654;
+const A4_SHORT = 1654; // 200 DPI
 const A4_LONG  = 2339;
-const COLS = 20;
-const CELL = 67;
-const GRID_W = CELL * COLS; // 1340
-const CHAR_SIZE = 46;
+const SIDE_MARGIN = 160;
 const MIN_ROWS = 3;
 
-function getLayout() {
-  const orient = document.getElementById('orientation').value;
-  const isPortrait = orient === 'portrait';
-  const canvasW = isPortrait ? A4_SHORT : A4_LONG;
-  const canvasH = isPortrait ? A4_LONG  : A4_SHORT;
-  const topMargin = 190;
-  const bottomMargin = 100;
-  const maxGridH = canvasH - topMargin - bottomMargin;
-  const maxRows = Math.floor(maxGridH / CELL); // portrait: ~30, landscape: ~20
-  const offsetX = Math.floor((canvasW - GRID_W) / 2);
-  return { canvasW, canvasH, maxRows, offsetX, topMargin, orient };
-}
+const GRID_PRESETS = {
+  large:    { cols: 12, label: '大格' },
+  medium:   { cols: 15, label: '中格' },
+  standard: { cols: 20, label: '標準' },
+};
 
 // ── DOM ──
 const textInput     = document.getElementById('textInput');
 const titleInput    = document.getElementById('titleInput');
+const nameInput     = document.getElementById('nameInput');
+const classInput    = document.getElementById('classInput');
+const seatInput     = document.getElementById('seatInput');
+const dateInput     = document.getElementById('dateInput');
+const gridSizeSel   = document.getElementById('gridSize');
 const gridColorSel  = document.getElementById('gridColor');
 const fontSel       = document.getElementById('fontSelect');
 const orientSel     = document.getElementById('orientation');
@@ -167,16 +209,39 @@ function fontStack(key) {
   return '"Songti SC", "SimSun", "Noto Serif TC", serif';
 }
 
-// ── 禁則字元（不可出現在行首）──
+// ── 禁則字元 ──
 const NO_START = new Set('。，、；：！？）」』】》〉．‧…─—～·｝)].,:;!?\'\"');
 
+// ── 版面計算 ──
+function getLayout() {
+  const orient = orientSel.value;
+  const isPortrait = orient === 'portrait';
+  const canvasW = isPortrait ? A4_SHORT : A4_LONG;
+  const canvasH = isPortrait ? A4_LONG  : A4_SHORT;
+  const preset = GRID_PRESETS[gridSizeSel.value] || GRID_PRESETS.standard;
+  const cols = preset.cols;
+
+  const availW = canvasW - SIDE_MARGIN * 2;
+  const cell = Math.floor(availW / cols);
+  const gridW = cell * cols;
+  const offsetX = Math.floor((canvasW - gridW) / 2);
+  const charSize = Math.round(cell * 0.68);
+
+  const topMargin = 210;
+  const bottomMargin = 100;
+  const maxGridH = canvasH - topMargin - bottomMargin;
+  const maxRows = Math.floor(maxGridH / cell);
+
+  return { canvasW, canvasH, cols, cell, gridW, offsetX, topMargin, maxRows, charSize, orient };
+}
+
 // ── 分頁 ──
-function paginate(text, maxRows) {
+function paginate(text, maxRows, cols) {
   const lines = text.split('\n');
   const pages = [];
   let page = [];
   let row = 0, col = 0;
-  let maxRowUsed = 0; // track highest row used on this page
+  let maxRowUsed = 0;
 
   function newPage() {
     page._rowCount = maxRowUsed + 1;
@@ -188,28 +253,19 @@ function paginate(text, maxRows) {
 
   for (let li = 0; li < lines.length; li++) {
     const chars = [...lines[li]];
-
     for (let ci = 0; ci < chars.length; ci++) {
       if (row >= maxRows) newPage();
-
-      // 禁則
       const nextCh = ci + 1 < chars.length ? chars[ci + 1] : null;
-      if (col === COLS - 1 && nextCh && NO_START.has(nextCh)) {
-        col = 0;
-        row++;
+      if (col === cols - 1 && nextCh && NO_START.has(nextCh)) {
+        col = 0; row++;
         if (row >= maxRows) newPage();
       }
-
       page.push({ char: chars[ci], row, col });
       if (row > maxRowUsed) maxRowUsed = row;
       col++;
-      if (col >= COLS) { col = 0; row++; }
+      if (col >= cols) { col = 0; row++; }
     }
-
-    if (col > 0 || chars.length === 0) {
-      row++;
-      col = 0;
-    }
+    if (col > 0 || chars.length === 0) { row++; col = 0; }
   }
 
   if (page.length > 0 || pages.length === 0) {
@@ -219,11 +275,28 @@ function paginate(text, maxRows) {
   return pages;
 }
 
+// ── 學生資訊 ──
+function getStudentInfo() {
+  const name  = nameInput.value.trim();
+  const cls   = classInput.value.trim();
+  const seat  = seatInput.value.trim();
+  const date  = dateInput.value;
+  const parts = [];
+  if (name) parts.push('姓名：' + name);
+  if (cls)  parts.push('班級：' + cls);
+  if (seat) parts.push('座號：' + seat);
+  if (date) {
+    const d = new Date(date);
+    parts.push(d.getFullYear() + ' 年 ' + (d.getMonth()+1) + ' 月 ' + d.getDate() + ' 日');
+  }
+  return parts;
+}
+
 // ── 繪製 ──
 function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount) {
-  const { canvasW, canvasH, offsetX, topMargin } = layout;
+  const { canvasW, canvasH, cols, cell, gridW, offsetX, topMargin, charSize } = layout;
   const actualRows = Math.max(rowCount, MIN_ROWS);
-  const gridH = CELL * actualRows;
+  const gridH = cell * actualRows;
 
   canvas.width  = canvasW;
   canvas.height = canvasH;
@@ -238,10 +311,23 @@ function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount)
   // 標題
   if (title) {
     ctx.fillStyle = '#333';
-    ctx.font = 'bold 50px ' + font;
+    ctx.font = 'bold 52px ' + font;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(title, canvasW / 2, topMargin / 2 + 5);
+    ctx.fillText(title, canvasW / 2, 65);
+  }
+
+  // 學生資訊
+  const infoParts = getStudentInfo();
+  if (infoParts.length > 0) {
+    ctx.fillStyle = '#555';
+    ctx.font = '30px ' + font;
+    ctx.textBaseline = 'middle';
+    const infoY = title ? 135 : 80;
+    const totalText = infoParts.join('    ');
+    // 靠右對齊到格線右邊
+    ctx.textAlign = 'right';
+    ctx.fillText(totalText, offsetX + gridW, infoY);
   }
 
   // 頁碼
@@ -256,36 +342,35 @@ function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount)
   // 外框
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 3;
-  ctx.strokeRect(offsetX, topMargin, GRID_W, gridH);
+  ctx.strokeRect(offsetX, topMargin, gridW, gridH);
 
   // 內格線
   ctx.lineWidth = 1;
   ctx.strokeStyle = gridColor;
   ctx.globalAlpha = 0.45;
-
   for (let r = 1; r < actualRows; r++) {
     ctx.beginPath();
-    ctx.moveTo(offsetX, topMargin + r * CELL);
-    ctx.lineTo(offsetX + GRID_W, topMargin + r * CELL);
+    ctx.moveTo(offsetX, topMargin + r * cell);
+    ctx.lineTo(offsetX + gridW, topMargin + r * cell);
     ctx.stroke();
   }
-  for (let c = 1; c < COLS; c++) {
+  for (let c = 1; c < cols; c++) {
     ctx.beginPath();
-    ctx.moveTo(offsetX + c * CELL, topMargin);
-    ctx.lineTo(offsetX + c * CELL, topMargin + gridH);
+    ctx.moveTo(offsetX + c * cell, topMargin);
+    ctx.lineTo(offsetX + c * cell, topMargin + gridH);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
   // 填字
   ctx.fillStyle = '#222';
-  ctx.font = CHAR_SIZE + 'px ' + font;
+  ctx.font = charSize + 'px ' + font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   for (const { char, row, col } of chars) {
-    const x = offsetX + col * CELL + CELL / 2;
-    const y = topMargin + row * CELL + CELL / 2;
+    const x = offsetX + col * cell + cell / 2;
+    const y = topMargin + row * cell + cell / 2;
     ctx.fillText(char, x, y);
   }
 }
@@ -296,26 +381,23 @@ function render() {
   const title = titleInput.value.trim();
   const charCount = [...text.replace(/\n/g, '')].length;
   const layout = getLayout();
-  const pages = paginate(text, layout.maxRows);
+  const pages = paginate(text, layout.maxRows, layout.cols);
 
   infoEl.textContent = '共 ' + charCount + ' 字 / ' + pages.length + ' 頁'
-    + '（每頁最多 ' + layout.maxRows + ' 行 × 20 格）';
+    + '（每行 ' + layout.cols + ' 格，每頁最多 ' + layout.maxRows + ' 行）';
   preview.innerHTML = '';
-
-  // 更新 print page size
   updatePrintStyle(layout.orient);
+  saveState();
 
   pages.forEach((chars, i) => {
     const wrapper = document.createElement('div');
     wrapper.className = 'page-wrapper';
-
     if (pages.length > 1) {
       const label = document.createElement('div');
       label.className = 'page-label no-print';
       label.textContent = '第 ' + (i + 1) + ' 頁';
       wrapper.appendChild(label);
     }
-
     const canvas = document.createElement('canvas');
     renderPage(canvas, chars, i + 1, pages.length, title, layout, chars._rowCount || 0);
     wrapper.appendChild(canvas);
@@ -335,17 +417,13 @@ function updatePrintStyle(orient) {
 }
 
 // ── 列印 ──
-function printPages() {
-  render(); // ensure latest
-  window.print();
-}
+function printPages() { render(); window.print(); }
 
 // ── 匯出 ──
 function exportAll() {
   const canvases = preview.querySelectorAll('canvas');
   if (!canvases.length) return;
   const base = titleInput.value.trim() || '稿紙';
-
   canvases.forEach((cv, i) => {
     setTimeout(() => {
       cv.toBlob(blob => {
@@ -361,16 +439,55 @@ function exportAll() {
   });
 }
 
+// ── localStorage ──
+const STORAGE_KEY = 'manuscript-paper-state';
+
+function saveState() {
+  try {
+    const state = {
+      text: textInput.value,
+      title: titleInput.value,
+      name: nameInput.value,
+      class: classInput.value,
+      seat: seatInput.value,
+      date: dateInput.value,
+      gridSize: gridSizeSel.value,
+      gridColor: gridColorSel.value,
+      font: fontSel.value,
+      orientation: orientSel.value,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) { /* ignore */ }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.text != null)        textInput.value    = s.text;
+    if (s.title != null)       titleInput.value   = s.title;
+    if (s.name != null)        nameInput.value    = s.name;
+    if (s.class != null)       classInput.value   = s.class;
+    if (s.seat != null)        seatInput.value    = s.seat;
+    if (s.date != null)        dateInput.value    = s.date;
+    if (s.gridSize != null)    gridSizeSel.value  = s.gridSize;
+    if (s.gridColor != null)   gridColorSel.value = s.gridColor;
+    if (s.font != null)        fontSel.value      = s.font;
+    if (s.orientation != null) orientSel.value    = s.orientation;
+  } catch (e) { /* ignore */ }
+}
+
 // ── 事件 ──
 let debounce;
 function scheduleRender() { clearTimeout(debounce); debounce = setTimeout(render, 120); }
 
-textInput.addEventListener('input', scheduleRender);
-titleInput.addEventListener('input', scheduleRender);
-gridColorSel.addEventListener('change', render);
-fontSel.addEventListener('change', render);
-orientSel.addEventListener('change', render);
+const allInputs = [textInput, titleInput, nameInput, classInput, seatInput, dateInput];
+allInputs.forEach(el => el.addEventListener('input', scheduleRender));
+[gridSizeSel, gridColorSel, fontSel, orientSel].forEach(el => el.addEventListener('change', render));
 
+// ── 初始化 ──
+loadState();
 render();
 </script>
 </body>

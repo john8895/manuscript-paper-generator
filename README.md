@@ -2,6 +2,8 @@
 
 貼上文字，自動排進中文作文稿紙，匯出 PNG 或直接列印。
 
+![小學生稿紙產生器截圖](screenshot.png)
+
 ## 功能
 
 - A4 直式 / 橫式切換
@@ -24,7 +26,7 @@
 
 1. 開啟 https://john8895.github.io/manuscript-paper-generator/
 2. 貼上文字
-3. 按「匯出 PNG」或「列印」
+3. 按「匯出圖片」或「列印」
 
 也可以下載 `index.html` 離線使用。
 

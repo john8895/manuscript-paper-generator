@@ -544,19 +544,20 @@ function paginate(text, maxRows, cols) {
   const pages = [];
   let page = [];
   let row = 0, col = 0, maxRowUsed = 0;
-  function newPage() { page._rowCount = maxRowUsed + 1; pages.push(page); page = []; row = 0; col = 0; maxRowUsed = 0; }
+  let wrapped = false;
+  function newPage() { page._rowCount = maxRowUsed + 1; pages.push(page); page = []; row = 0; col = 0; maxRowUsed = 0; wrapped = false; }
   for (let li = 0; li < lines.length; li++) {
     const chars = [...lines[li]];
     for (let ci = 0; ci < chars.length; ci++) {
       if (row >= maxRows) newPage();
-      const nextCh = ci + 1 < chars.length ? chars[ci + 1] : null;
-      if (col === cols - 1 && nextCh && NO_START.has(nextCh)) { col = 0; row++; if (row >= maxRows) newPage(); }
+      wrapped = false;
       page.push({ char: chars[ci], row, col });
       if (row > maxRowUsed) maxRowUsed = row;
       col++;
-      if (col >= cols) { col = 0; row++; }
+      if (col >= cols) { col = 0; row++; wrapped = true; }
     }
     if (col > 0 || chars.length === 0) { row++; col = 0; }
+    wrapped = false;
   }
   if (page.length > 0 || pages.length === 0) { page._rowCount = page.length > 0 ? maxRowUsed + 1 : 0; pages.push(page); }
   return pages;

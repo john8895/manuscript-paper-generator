@@ -21,6 +21,7 @@
 <meta name="twitter:description" content="免費線上作文稿紙工具。貼上文字自動排進方格，匯出圖片或直接列印。">
 
 <link rel="canonical" href="https://john8895.github.io/manuscript-paper-generator/">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
@@ -444,7 +445,13 @@
       <input type="date" id="dateInput">
     </div>
 
-    <!-- 第三行：格式設定 -->
+    <!-- 第三行：故事網址 -->
+    <div class="field-row">
+      <label>故事網址：</label>
+      <input type="text" id="urlInput" style="flex:1;min-width:200px" placeholder="https://… 填入後右下角會出現 QR Code">
+    </div>
+
+    <!-- 第四行：格式設定 -->
     <div class="field-row">
       <label>方向：</label>
       <select id="orientation">
@@ -509,6 +516,7 @@ const dateInput     = document.getElementById('dateInput');
 const gridSizeSel   = document.getElementById('gridSize');
 const gridColorSel  = document.getElementById('gridColor');
 const fontSel       = document.getElementById('fontSelect');
+const urlInput      = document.getElementById('urlInput');
 const orientSel     = document.getElementById('orientation');
 const preview       = document.getElementById('preview');
 const infoEl        = document.getElementById('info');
@@ -633,6 +641,40 @@ function renderPage(canvas, chars, pageNum, totalPages, title, layout, rowCount)
   for (const { char, row, col } of chars) {
     ctx.fillText(char, offsetX + col * cell + cell / 2, topMargin + row * cell + cell / 2);
   }
+
+  // QR Code
+  const url = urlInput.value.trim();
+  if (url) {
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      const modCount = qr.getModuleCount();
+      const qrSize = 120;
+      const qrCellSize = qrSize / modCount;
+      const qrMargin = 24;
+      const qrX = qrMargin;
+      const qrY = qrMargin;
+      // white background
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(qrX - 6, qrY - 6, qrSize + 12, qrSize + 12 + 28);
+      // draw modules
+      ctx.fillStyle = '#999';
+      for (let r = 0; r < modCount; r++) {
+        for (let c = 0; c < modCount; c++) {
+          if (qr.isDark(r, c)) {
+            ctx.fillRect(qrX + c * qrCellSize, qrY + r * qrCellSize, Math.ceil(qrCellSize), Math.ceil(qrCellSize));
+          }
+        }
+      }
+      // label
+      ctx.fillStyle = '#888';
+      ctx.font = '20px ' + font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('故事網址', qrX + qrSize / 2, qrY + qrSize + 4);
+    } catch (e) {}
+  }
 }
 
 function render() {
@@ -690,7 +732,7 @@ function saveState() {
       text: textInput.value, title: titleInput.value, name: nameInput.value,
       class: classInput.value, seat: seatInput.value, date: dateInput.value,
       gridSize: gridSizeSel.value, gridColor: gridColorSel.value,
-      font: fontSel.value, orientation: orientSel.value,
+      font: fontSel.value, orientation: orientSel.value, url: urlInput.value,
     }));
   } catch (e) {}
 }
@@ -708,12 +750,13 @@ function loadState() {
     if (s.gridColor != null)   gridColorSel.value = s.gridColor;
     if (s.font != null)        fontSel.value      = s.font;
     if (s.orientation != null) orientSel.value    = s.orientation;
+    if (s.url != null)         urlInput.value     = s.url;
   } catch (e) {}
 }
 
 let debounce;
 function scheduleRender() { clearTimeout(debounce); debounce = setTimeout(render, 120); }
-[textInput, titleInput, nameInput, classInput, seatInput, dateInput].forEach(el => el.addEventListener('input', scheduleRender));
+[textInput, titleInput, nameInput, classInput, seatInput, dateInput, urlInput].forEach(el => el.addEventListener('input', scheduleRender));
 [gridSizeSel, gridColorSel, fontSel, orientSel].forEach(el => el.addEventListener('change', render));
 
 loadState();
